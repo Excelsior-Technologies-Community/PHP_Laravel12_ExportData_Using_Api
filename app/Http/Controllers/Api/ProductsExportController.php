@@ -7,24 +7,55 @@ use App\Models\Product;
 use App\Exports\ProductsExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\Response;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 
 class ProductsExportController extends Controller
 {
-    // ✅ Export Products as JSON
-    public function exportJson()
+    //  JSON Export
+    public function exportJson(Request $request)
     {
-        $products = Product::all();
+        $query = Product::query();
+
+        if ($request->min_price) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->max_price) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        if ($request->quantity) {
+            $query->where('quantity', '<=', $request->quantity);
+        }
+
+        $products = $query->get();
 
         return response()->json([
             'status' => true,
             'data'   => $products
-        ], Response::HTTP_OK);
+        ]);
     }
 
-    // ✅ Export Products as CSV
-    public function exportCsv()
+    //  CSV Export
+    public function exportCsv(Request $request)
     {
-        $products = Product::all();
+        $query = Product::query();
+
+        if ($request->min_price) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->max_price) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        if ($request->quantity) {
+            $query->where('quantity', '<=', $request->quantity);
+        }
+
+        $products = $query->get();
+
         $filename = "products_export.csv";
 
         $headers = [
@@ -53,12 +84,36 @@ class ProductsExportController extends Controller
         return response()->stream($callback, Response::HTTP_OK, $headers);
     }
 
-    // ✅ Export Products as Excel
-    public function exportExcel()
+    //  Excel Export
+    public function exportExcel(Request $request)
     {
         return Excel::download(
-            new ProductsExport,
+            new ProductsExport($request),
             'products_export.xlsx'
         );
+    }
+
+    //  PDF Export
+    public function exportPdf(Request $request)
+    {
+        $query = Product::query();
+
+        if ($request->min_price) {
+            $query->where('price', '>=', $request->min_price);
+        }
+
+        if ($request->max_price) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        if ($request->quantity) {
+            $query->where('quantity', '<=', $request->quantity);
+        }
+
+        $products = $query->get();
+
+        $pdf = Pdf::loadView('pdf.products', compact('products'));
+
+        return $pdf->download('products.pdf');
     }
 }

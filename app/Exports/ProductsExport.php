@@ -2,16 +2,37 @@
 
 namespace App\Exports;
 
-use App\Models\Product;   // ✅ CORRECT
+use App\Models\Product;
+use Illuminate\Http\Request;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class ProductsExport implements FromCollection, WithHeadings
 {
-    // Return products data for Excel
+    protected $request;
+
+    public function __construct(Request $request)
+    {
+        $this->request = $request;
+    }
+
     public function collection()
     {
-        return Product::select(
+        $query = Product::query();
+
+        if ($this->request->min_price) {
+            $query->where('price', '>=', $this->request->min_price);
+        }
+
+        if ($this->request->max_price) {
+            $query->where('price', '<=', $this->request->max_price);
+        }
+
+        if ($this->request->quantity) {
+            $query->where('quantity', '<=', $this->request->quantity);
+        }
+
+        return $query->select(
             'id',
             'name',
             'sku',
@@ -21,7 +42,6 @@ class ProductsExport implements FromCollection, WithHeadings
         )->get();
     }
 
-    // Column headings
     public function headings(): array
     {
         return [
