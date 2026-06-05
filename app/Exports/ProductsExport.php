@@ -1,82 +1,52 @@
 <?php
+// app/Exports/ProductsExport.php
 
 namespace App\Exports;
 
 use App\Models\Product;
-use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\Exportable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class ProductsExport implements FromQuery, WithHeadings, ShouldQueue
+class ProductsExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
 {
-    use Exportable;
-
     protected $filters;
-
-    public function __construct(array $filters)
+    
+    public function __construct($filters = [])
     {
         $this->filters = $filters;
     }
-
-    public function query()
+    
+    public function collection()
     {
         $query = Product::query();
-
-        if (isset($this->filters['search']) && !empty($this->filters['search'])) {
-            $query->where(function($q) {
-                $q->where('name', 'LIKE', '%' . $this->filters['search'] . '%')
-                  ->orWhere('sku', 'LIKE', '%' . $this->filters['search'] . '%');
-            });
+        
+        if (!empty($this->filters['search'])) {
+            $query->where('name', 'LIKE', '%' . $this->filters['search'] . '%');
         }
-
-        if (isset($this->filters['min_price']) && $this->filters['min_price'] !== null) {
+        
+        if (!empty($this->filters['min_price'])) {
             $query->where('price', '>=', $this->filters['min_price']);
         }
-
-        if (isset($this->filters['max_price']) && $this->filters['max_price'] !== null) {
-            $query->where('price', '<=', $this->filters['max_price']);
-        }
-
-        if (isset($this->filters['quantity']) && $this->filters['quantity'] !== null) {
-            $query->where('quantity', '<=', $this->filters['quantity']);
-        }
-
-        if (isset($this->filters['start_date']) && !empty($this->filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $this->filters['start_date']);
-        }
-
-        if (isset($this->filters['end_date']) && !empty($this->filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $this->filters['end_date']);
-        }
-
-        $sortBy = $this->filters['sort_by'] ?? 'id';
-        $sortDir = $this->filters['sort_dir'] ?? 'desc';
-        $allowedSorts = ['id', 'name', 'price', 'quantity', 'created_at'];
-
-        if (in_array($sortBy, $allowedSorts)) {
-            $query->orderBy($sortBy, $sortDir === 'asc' ? 'asc' : 'desc');
-        }
-
-        return $query->select(
-            'id',
-            'name',
-            'sku',
-            'price',
-            'quantity',
-            'created_at'
-        );
+        
+        return $query->get();
     }
-
+    
     public function headings(): array
     {
+        return ['ID', 'Name', 'SKU', 'Price', 'Quantity', 'Created At'];
+    }
+    
+    public function map($product): array
+    {
         return [
-            'ID',
-            'Name',
-            'SKU',
-            'Price',
-            'Quantity',
-            'Created At'
+            $product->id,
+            $product->name,
+            $product->sku,
+            $product->price,
+            $product->quantity,
+            $product->created_at->format('Y-m-d H:i:s')
         ];
     }
 }
